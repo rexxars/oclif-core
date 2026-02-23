@@ -210,6 +210,12 @@ export type ArgProps = {
 export type BooleanFlagProps = FlagProps & {
   type: 'boolean'
   allowNo: boolean
+  /**
+   * Allow `--flag=true` and `--flag=false` syntax. Case-insensitive.
+   * When disabled, the value after `=` is ignored (legacy behavior).
+   * @default true
+   */
+  allowBooleanValue: boolean
 }
 
 export type OptionFlagProps = FlagProps & {

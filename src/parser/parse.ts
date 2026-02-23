@@ -153,19 +153,27 @@ export class Parser<
       const {isLong, name} = this.findFlag(arg)
       if (!name) {
         const i = arg.indexOf('=')
-        if (i !== -1) {
-          const sliced = arg.slice(i + 1)
-          this.argv.unshift(sliced)
+        if (i === -1) return false
 
-          const equalsParsed = await parseFlag(arg.slice(0, i))
-          if (!equalsParsed) {
-            this.argv.shift()
-          }
+        const sliced = arg.slice(i + 1)
+        const flagPart = arg.slice(0, i)
 
-          return equalsParsed
+        // Check if this resolves to a boolean flag
+        const {name: flagName} = this.findFlag(flagPart)
+        const resolvedFlag = flagName ? this.input.flags[flagName] : undefined
+        if (flagName && resolvedFlag?.type === 'boolean') {
+          return this.parseBooleanEqualsValue(flagName, resolvedFlag, flagPart, sliced, arg)
         }
 
-        return false
+        // Original logic for non-boolean flags
+        this.argv.unshift(sliced)
+
+        const equalsParsed = await parseFlag(flagPart)
+        if (!equalsParsed) {
+          this.argv.shift()
+        }
+
+        return equalsParsed
       }
 
       const flag = this.input.flags[name]
@@ -200,6 +208,17 @@ export class Parser<
           throw new CLIError(`Flag --${name} expects a value`)
         }
 
+        this.raw.push({flag: flag.name, input, type: 'flag'})
+      } else if (!isLong && arg.includes('=') && flag.allowBooleanValue) {
+        // Handle short boolean flags with =value (e.g., -f=true, -f=false)
+        const eqIndex = arg.indexOf('=')
+        const sliced = arg.slice(eqIndex + 1)
+        const lower = sliced.toLowerCase()
+        if (lower !== 'true' && lower !== 'false') {
+          throw new CLIError(`Flag --${name} expects a boolean value (true or false), but received: ${sliced}`)
+        }
+
+        const input = lower === 'false' ? `${NEGATION}${name}` : arg
         this.raw.push({flag: flag.name, input, type: 'flag'})
       } else {
         this.raw.push({flag: flag.name, input: arg, type: 'flag'})
@@ -692,5 +711,39 @@ export class Parser<
     }
 
     return flagTokenMap
+  }
+
+  /**
+   * Handle --flag=true / --flag=false / -f=true / -f=false for boolean flags.
+   * When allowBooleanValue is true, validates and stores the value.
+   * When allowBooleanValue is false, silently discards the =value (legacy behavior).
+   */
+  private parseBooleanEqualsValue(
+    flagName: string,
+    flag: BooleanFlag<any>,
+    flagPart: string,
+    sliced: string,
+    arg: string,
+  ): true {
+    if (flag.allowBooleanValue) {
+      // Reject --no-flag=value syntax
+      if (flagPart.startsWith(NEGATION)) {
+        throw new CLIError(`Flag ${flagPart} does not accept a value. Use --${flagName}=false instead.`)
+      }
+
+      const lower = sliced.toLowerCase()
+      if (lower !== 'true' && lower !== 'false') {
+        throw new CLIError(`Flag --${flagName} expects a boolean value (true or false), but received: ${sliced}`)
+      }
+
+      // Synthesize --no-flagName for false so existing negation resolution handles it
+      const input = lower === 'false' ? `${NEGATION}${flagName}` : arg
+      this.raw.push({flag: flagName, input, type: 'flag'})
+      return true
+    }
+
+    // allowBooleanValue is false: silently discard the =value (legacy behavior)
+    this.raw.push({flag: flagName, input: flagPart, type: 'flag'})
+    return true
   }
 }

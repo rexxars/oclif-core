@@ -79,6 +79,7 @@ export function boolean<T = boolean>(options: Partial<BooleanFlag<T>> = {}): Boo
   return {
     parse: async (b, _) => b,
     ...options,
+    allowBooleanValue: options.allowBooleanValue ?? true,
     allowNo: Boolean(options.allowNo),
     type: 'boolean',
   } as BooleanFlag<T>

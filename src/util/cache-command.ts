@@ -42,6 +42,7 @@ async function cacheFlags(
       summary: flag.summary,
       ...(flag.type === 'boolean'
         ? {
+            allowBooleanValue: flag.allowBooleanValue,
             allowNo: flag.allowNo,
             type: flag.type,
           }

@@ -1834,6 +1834,125 @@ See more help with --help`)
     })
   })
 
+  describe('allowBooleanValue', () => {
+    it('is true when --flag=true', async () => {
+      const out = await parse(['--foo=true'], {
+        flags: {
+          foo: Flags.boolean(),
+        },
+      })
+      expect(out.flags.foo).to.equal(true)
+    })
+
+    it('is false when --flag=false', async () => {
+      const out = await parse(['--foo=false'], {
+        flags: {
+          foo: Flags.boolean(),
+        },
+      })
+      expect(out.flags.foo).to.equal(false)
+    })
+
+    it('is case-insensitive (TRUE)', async () => {
+      const out = await parse(['--foo=TRUE'], {
+        flags: {
+          foo: Flags.boolean(),
+        },
+      })
+      expect(out.flags.foo).to.equal(true)
+    })
+
+    it('is case-insensitive (False)', async () => {
+      const out = await parse(['--foo=False'], {
+        flags: {
+          foo: Flags.boolean(),
+        },
+      })
+      expect(out.flags.foo).to.equal(false)
+    })
+
+    it('is case-insensitive (fAlSe)', async () => {
+      const out = await parse(['--foo=fAlSe'], {
+        flags: {
+          foo: Flags.boolean(),
+        },
+      })
+      expect(out.flags.foo).to.equal(false)
+    })
+
+    it('throws on invalid value', async () => {
+      try {
+        await parse(['--foo=banana'], {
+          flags: {
+            foo: Flags.boolean(),
+          },
+        })
+        throw new Error('expected error')
+      } catch (error: any) {
+        expect(error.message).to.include('expects a boolean value')
+        expect(error.message).to.include('banana')
+      }
+    })
+
+    it('ignores value when allowBooleanValue is false (legacy behavior)', async () => {
+      const out = await parse(['--foo=false'], {
+        flags: {
+          foo: Flags.boolean({allowBooleanValue: false}),
+        },
+      })
+      expect(out.flags.foo).to.equal(true)
+    })
+
+    it('works with allowNo: true', async () => {
+      const out = await parse(['--foo=false'], {
+        flags: {
+          foo: Flags.boolean({allowNo: true}),
+        },
+      })
+      expect(out.flags.foo).to.equal(false)
+    })
+
+    it('throws when --no-flag=value is used', async () => {
+      try {
+        await parse(['--no-foo=true'], {
+          flags: {
+            foo: Flags.boolean({allowNo: true}),
+          },
+        })
+        throw new Error('expected error')
+      } catch (error: any) {
+        expect(error.message).to.include('does not accept a value')
+      }
+    })
+
+    it('overrides default with explicit false', async () => {
+      const out = await parse(['--foo=false'], {
+        flags: {
+          foo: Flags.boolean({default: true}),
+        },
+      })
+      expect(out.flags.foo).to.equal(false)
+    })
+
+    it('works with short flag -f=true', async () => {
+      const out = await parse(['-f=true'], {
+        flags: {
+          foo: Flags.boolean({char: 'f'}),
+        },
+      })
+      expect(out.flags.foo).to.equal(true)
+    })
+
+    it('works with short flag -f=false', async () => {
+      const out = await parse(['-f=false'], {
+        flags: {
+          foo: Flags.boolean({char: 'f'}),
+        },
+      })
+      expect(out.flags.foo).to.equal(false)
+    })
+  })
+
   describe('fs flags', () => {
     let statStub: sinon.SinonStub
 
